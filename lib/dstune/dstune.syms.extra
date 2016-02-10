@@ -1,0 +1,4 @@
+__dstune_init
+__dstune_read*
+__dstune_write*
+__dstune_unaligned*
