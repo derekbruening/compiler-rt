@@ -26,19 +26,26 @@
 #ifndef DSTUNE_H
 #define DSTUNE_H
 
-#include "dstune.h"
+#include "sanitizer_common/sanitizer_common.h"
+
+#define CALLERPC ((uptr)__builtin_return_address(0))
 
 namespace __dstune {
 
-void Initialize();
-void MemoryAccess(uptr PC, uptr Addr, int SizeLog, bool IsWrite);
-void UnalignedMemoryAccess(uptr PC, uptr Addr, int Size, bool IsWrite);
-void MemoryAccessRange(uptr PC, uptr Addr, int Size, bool IsWrite);
+extern bool DstuneIsInitialized;
 
 const int kSizeLog1 = 0;
 const int kSizeLog2 = 1;
 const int kSizeLog4 = 2;
 const int kSizeLog8 = 3;
+
+void initializeLibrary();
+int finalizeLibrary();
+void processMemAccess(uptr PC, uptr Addr, int SizeLog, bool IsWrite);
+void processUnalignedAccess(uptr PC, uptr Addr, int Size, bool IsWrite);
+void processRangeAccess(uptr PC, uptr Addr, int Size, bool IsWrite);
+
+void initializeInterceptors();
 
 }  // namespace __dstune
 

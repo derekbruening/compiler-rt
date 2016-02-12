@@ -10,7 +10,8 @@ include_directories(..)
 
 set(DSTUNE_SOURCES
   dstune.cc
-  dstune_interface.cc)
+  dstune_interface.cc
+  dstune_interceptors.cc)
 
 foreach (arch ${TSAN_SUPPORTED_ARCH})
   add_compiler_rt_runtime(clang_rt.dstune

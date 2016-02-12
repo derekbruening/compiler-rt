@@ -12,35 +12,41 @@
 // Main file (entry points) for the Dstune run-time.
 //===----------------------------------------------------------------------===//
 
-#include "dstune_interface.h"
 #include "dstune.h"
+#include "dstune_interface.h"
 #include "sanitizer_common/sanitizer_common.h"
 
 namespace __dstune {
 
-void Initialize() {
+bool DstuneIsInitialized;
+
+void initializeLibrary() {
   // We assume there is only one thread during init.
-  static bool IsInitialized = false;
-  if (IsInitialized)
+  if (DstuneIsInitialized)
     return;
-  IsInitialized = true;
-  Printf("in dstune::%s\n", __FUNCTION__);
+  DstuneIsInitialized = true;
+  Printf("in dstune::%s\n", __FUNCTION__);//NOCHECKIN
+  initializeInterceptors();
 }
 
-int Finalize() {
-  // FIXME: need to intercept exit and call this
-  Printf("in dstune::%s\n", __FUNCTION__);
+int finalizeLibrary() {
+  Printf("in dstune::%s\n", __FUNCTION__);//NOCHECKIN
   return 0;
 }
 
 ALWAYS_INLINE USED
-void MemoryAccess(uptr PC, uptr Addr, int SizeLog, bool IsWrite) {
+void processMemAccess(uptr PC, uptr Addr, int SizeLog, bool IsWrite) {
   Printf("in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
          IsWrite ? 'w' : 'r', Addr, 1 << SizeLog);
 }
 
 ALWAYS_INLINE USED
-void UnalignedMemoryAccess(uptr PC, uptr Addr, int Size, bool IsWrite) {
+void processUnalignedAccess(uptr PC, uptr Addr, int Size, bool IsWrite) {
+  Printf("in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
+         IsWrite ? 'w' : 'r', Addr, Size);
+}
+
+void processRangeAccess(uptr PC, uptr Addr, int Size, bool IsWrite) {
   Printf("in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
          IsWrite ? 'w' : 'r', Addr, Size);
 }

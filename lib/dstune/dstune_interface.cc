@@ -15,87 +15,85 @@
 #include "dstune.h"
 #include "sanitizer_common/sanitizer_internal_defs.h"
 
-#define CALLERPC ((uptr)__builtin_return_address(0))
-
 using namespace __dstune;  // NOLINT
 
 void __dstune_init() {
-  Initialize();
+  initializeLibrary();
 }
 
 // FIXME: put all of these in a header to ensure inlining -- though
 // it would be better to manually inline the instru once we finalize it.
 
 void __dstune_read1(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog1, false);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog1, false);
 }
 
 void __dstune_read2(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog2, false);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog2, false);
 }
 
 void __dstune_read4(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog4, false);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog4, false);
 }
 
 void __dstune_read8(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog8, false);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog8, false);
 }
 
 void __dstune_write1(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog1, true);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog1, true);
 }
 
 void __dstune_write2(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog2, true);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog2, true);
 }
 
 void __dstune_write4(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog4, true);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog4, true);
 }
 
 void __dstune_write8(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog8, true);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog8, true);
 }
 
 void __dstune_read16(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog8, false);
-  MemoryAccess(CALLERPC, (uptr)Addr + 8, kSizeLog8, false);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog8, false);
+  processMemAccess(CALLERPC, (uptr)Addr + 8, kSizeLog8, false);
 }
 
 void __dstune_write16(void *Addr) {
-  MemoryAccess(CALLERPC, (uptr)Addr, kSizeLog8, true);
-  MemoryAccess(CALLERPC, (uptr)Addr + 8, kSizeLog8, true);
+  processMemAccess(CALLERPC, (uptr)Addr, kSizeLog8, true);
+  processMemAccess(CALLERPC, (uptr)Addr + 8, kSizeLog8, true);
 }
 
 void __dstune_unaligned_read2(const void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 2, false);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 2, false);
 }
 
 void __dstune_unaligned_read4(const void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 4, false);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 4, false);
 }
 
 void __dstune_unaligned_read8(const void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 8, false);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 8, false);
 }
 
 void __dstune_unaligned_read16(const void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 16, false);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 16, false);
 }
 
 void __dstune_unaligned_write2(void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 2, true);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 2, true);
 }
 
 void __dstune_unaligned_write4(void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 4, true);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 4, true);
 }
 
 void __dstune_unaligned_write8(void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 8, true);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 8, true);
 }
 
 void __dstune_unaligned_write16(void *Addr) {
-  UnalignedMemoryAccess(CALLERPC, (uptr)Addr, 16, true);
+  processUnalignedAccess(CALLERPC, (uptr)Addr, 16, true);
 }
