@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "dstune.h"
+#include "dstune_shadow.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
@@ -334,8 +335,7 @@ INTERCEPTOR(int, rmdir, char *path) {
 // FIXME: share with all sanitizers
 static bool fix_mmap_addr(void **addr, SIZE_T sz, int flags) {
   if (*addr) {
-#if 0 // FIXME: we need this once we add shadow memory
-    if (!IsAppMem((uptr)*addr) || !IsAppMem((uptr)*addr + sz - 1)) {
+    if (!isAppMem((uptr)*addr) || !isAppMem((uptr)*addr + sz - 1)) {
       if (flags & MAP_FIXED) {
         errno = EINVAL;
         return false;
@@ -343,7 +343,6 @@ static bool fix_mmap_addr(void **addr, SIZE_T sz, int flags) {
         *addr = 0;
       }
     }
-#endif
   }
   return true;
 }
