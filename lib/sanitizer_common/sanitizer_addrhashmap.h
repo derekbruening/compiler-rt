@@ -64,6 +64,7 @@ class AddrHashMap {
 
  public:
   AddrHashMap();
+  uptr size() const;
 
   class Handle {
    public:
@@ -91,6 +92,7 @@ class AddrHashMap {
  private:
   friend class Handle;
   Bucket *table_;
+  atomic_uintptr_t count_;
 
   void acquire(Handle *h);
   void release(Handle *h);
@@ -149,6 +151,12 @@ bool AddrHashMap<T, kSize>::Handle::exists() const {
 template<typename T, uptr kSize>
 AddrHashMap<T, kSize>::AddrHashMap() {
   table_ = (Bucket*)MmapOrDie(kSize * sizeof(table_[0]), "AddrHashMap");
+  atomic_store(&count_, 0, memory_order_relaxed);
+}
+
+template<typename T, uptr kSize>
+uptr AddrHashMap<T, kSize>::size() const {
+  return (uptr) atomic_load(&count_, memory_order_relaxed);
 }
 
 template<typename T, uptr kSize>
@@ -239,6 +247,7 @@ void AddrHashMap<T, kSize>::acquire(Handle *h) {
 
   // Now try to create it under the mutex.
   h->created_ = true;
+  atomic_fetch_add(&count_, 1, memory_order_relaxed);
   // See if we have a free embed cell.
   for (uptr i = 0; i < kBucketSize; i++) {
     Cell *c = &b->cells[i];
@@ -322,6 +331,7 @@ void AddrHashMap<T, kSize>::release(Handle *h) {
     if (add && add->size == 0) {
       // FIXME(dvyukov): free add?
     }
+    atomic_fetch_sub(&count_, 1, memory_order_relaxed);
     b->mtx.Unlock();
   } else {
     CHECK_EQ(addr1, h->addr_);
