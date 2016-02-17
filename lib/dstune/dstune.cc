@@ -47,6 +47,10 @@ struct WriteAfterWrite {
   // FIXME: add first + second callstacks
 };
 
+// FIXME: the AddrHashMap table has no resizing of the main hashed table
+// to maintain a reasonable load balance across varying amounts of data
+// (it only grows the "add cells" conflict list).
+// We should measure the cost and improve or replace it if necessary.
 typedef AddrHashMap<WriteAfterWrite, 31051> WriteAfterWriteHashMap;
 
 // We use a pointer to avoid a static constructor
@@ -57,10 +61,15 @@ static void processWAWInstance(uptr PC, uptr Addr, ShadowByte &Shadow) {
                                    /* remove */ false,
                                    /* create */ false);
   if (h.exists()) {
+    // FIXME: handle the same data address being involved in multiple
+    // WAW instances with different first and/or second PC's.
     CHECK(!h.created());
     h->Count++;
     // FIXME: what is LLVM method for cross-platform int64 format code?
     VPrintf(3, "WAW repeat %p: count %llu\n", Addr, h->Count);
+    // FIXME: once Count crosses some threshold, set a bit requesting
+    // callstacks.  Uniquify and store the callstacks from each such periodic
+    // walk, each with their own counter.
   } else {
     WriteAfterWriteHashMap::Handle h(WAWHashMap, Addr);
     CHECK(h.created());
@@ -78,6 +87,8 @@ static void setWAWFirstPC(uptr PC, uptr Addr) {
                                    /* create */ false);
   if (h.exists()) {
     CHECK(!h.created());
+    //NOCHECKIN we only have read access to the data
+    //  We need to add a lookup routine that holds the write lock.
     h->FirstPC = PC;
   }
 }
@@ -172,7 +183,7 @@ void initializeLibrary() {
   DstuneIsInitialized = true;
   SanitizerToolName = "DeadStoreTuner";
   // FIXME: runtime flags: share with sanitizers?
-  SetVerbosity(3); //NOCHECKIN
+  SetVerbosity(2); //NOCHECKIN
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
   initializeInterceptors();
   initializeShadow();
@@ -180,6 +191,20 @@ void initializeLibrary() {
 
 int finalizeLibrary() {
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
+
+  if (WAWHashMap->size() > 0) {
+    Report("%d write-after-write instances found:\n", WAWHashMap->size());
+    int i = 0;
+    for (auto iter = WAWHashMap->begin();
+         iter != WAWHashMap->end();
+         ++iter, ++i) {
+      WriteAfterWrite *WAW = (WriteAfterWrite *) (*iter).value;
+      // FIXME: what is LLVM method for cross-platform int64 format code?
+      Report(" #%d: write to %p by %p and %p %lldx\n", i, (uptr)(*iter).addr,
+             WAW->FirstPC, WAW->SecondPC, WAW->Count);
+    }
+  }
+
   return 0;
 }
 
