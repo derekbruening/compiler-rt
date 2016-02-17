@@ -64,6 +64,9 @@ const int MAP_FIXED = 0x10; // from /usr/include/sys/mman.h
 #define COMMON_INTERCEPTOR_READ_RANGE(ctx, ptr, size)              \
   processRangeAccess(CUR_PC(), (uptr)ptr, size, false)
 
+// FIXME: this is broken, as _exit is not a weak symbol in libc.
+// We're calling atexit below to work around the problem.
+// Ideally we'd fix this common interceptor to use that solution.
 #define COMMON_INTERCEPTOR_ON_EXIT(ctx)         \
   finalizeLibrary()
 
@@ -366,6 +369,11 @@ INTERCEPTOR(void *, mmap64, void *addr, SIZE_T sz, int prot, int flags,
 # define DSTUNE_MAYBE_INTERCEPT_MMAP64
 #endif
 
+// See comment below.
+extern "C" {
+  extern void __cxa_atexit(void (*function)(void));
+}
+
 namespace __dstune {
 
 void initializeInterceptors() {
@@ -401,6 +409,10 @@ void initializeInterceptors() {
 
   INTERCEPT_FUNCTION(mmap);
   DSTUNE_MAYBE_INTERCEPT_MMAP64;
+
+  // Intercepting _exit or exit simply does not work as they are not
+  // weak symbols in libc.  Thus we call atexit.
+  ::__cxa_atexit((void (*)())finalizeLibrary);
 
   // FIXME: we should intercept calloc() and other memory allocation
   // routines that zero memory and complain about subsequent writes.
