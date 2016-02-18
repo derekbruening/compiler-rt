@@ -51,7 +51,7 @@ struct WriteAfterWrite {
 // to maintain a reasonable load balance across varying amounts of data
 // (it only grows the "add cells" conflict list).
 // We should measure the cost and improve or replace it if necessary.
-typedef AddrHashMap<WriteAfterWrite, 31051> WriteAfterWriteHashMap;
+typedef AddrHashMap<WriteAfterWrite, 31051000> WriteAfterWriteHashMap;
 
 // We use a pointer to avoid a static constructor
 static WriteAfterWriteHashMap *WAWHashMap;
@@ -63,10 +63,11 @@ static void processWAWInstance(uptr PC, uptr Addr, ShadowByte &Shadow) {
   if (h.exists()) {
     // FIXME: handle the same data address being involved in multiple
     // WAW instances with different first and/or second PC's.
+    // Keep a list of PC's instead of just one.
     CHECK(!h.created());
     h->Count++;
     // FIXME: what is LLVM method for cross-platform int64 format code?
-    VPrintf(3, "WAW repeat %p: count %llu\n", Addr, h->Count);
+    VPrintf(4, "WAW repeat %p: count %llu\n", Addr, h->Count);
     // FIXME: once Count crosses some threshold, set a bit requesting
     // callstacks.  Uniquify and store the callstacks from each such periodic
     // walk, each with their own counter.
@@ -77,7 +78,7 @@ static void processWAWInstance(uptr PC, uptr Addr, ShadowByte &Shadow) {
     h->FirstPC = 0;
     h->SecondPC = PC;
     Shadow.ContextRequested = 1;
-    VPrintf(2, "New WAW instance PC=%p %p\n", PC, Addr);
+    VPrintf(3, "New WAW instance PC=%p %p\n", PC, Addr);
   }
 }
 
@@ -89,6 +90,7 @@ static void setWAWFirstPC(uptr PC, uptr Addr) {
     CHECK(!h.created());
     //NOCHECKIN we only have read access to the data
     //  We need to add a lookup routine that holds the write lock.
+    //  Ditto for h->Count++ above.
     h->FirstPC = PC;
   }
 }
@@ -100,7 +102,7 @@ UNUSED static void removeWAWData(uptr Addr) {
 
 ALWAYS_INLINE USED
 void processMemAccess(uptr PC, uptr Addr, int SizeLog, bool IsWrite) {
-  VPrintf(3, "in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
+  VPrintf(4, "in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
          IsWrite ? 'w' : 'r', Addr, 1 << SizeLog);
   // FIXME: optimize and inline into the instrumentation
   processRangeAccess(PC, Addr, 1 << SizeLog, IsWrite);
@@ -108,7 +110,7 @@ void processMemAccess(uptr PC, uptr Addr, int SizeLog, bool IsWrite) {
 
 ALWAYS_INLINE USED
 void processUnalignedAccess(uptr PC, uptr Addr, int Size, bool IsWrite) {
-  VPrintf(3, "in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
+  VPrintf(4, "in dstune::%s %p: %c %p %d\n", __FUNCTION__, PC,
          IsWrite ? 'w' : 'r', Addr, Size);
   processRangeAccess(PC, Addr, Size, IsWrite);
 }
@@ -183,7 +185,7 @@ void initializeLibrary() {
   DstuneIsInitialized = true;
   SanitizerToolName = "DeadStoreTuner";
   // FIXME: runtime flags: share with sanitizers?
-  SetVerbosity(2); //NOCHECKIN
+  SetVerbosity(0); //NOCHECKIN
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
   initializeInterceptors();
   initializeShadow();
@@ -191,7 +193,6 @@ void initializeLibrary() {
 
 int finalizeLibrary() {
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
-
   if (WAWHashMap->size() > 0) {
     Report("%d write-after-write instances found:\n", WAWHashMap->size());
     int i = 0;
@@ -200,6 +201,7 @@ int finalizeLibrary() {
          ++iter, ++i) {
       WriteAfterWrite *WAW = (WriteAfterWrite *) (*iter).value;
       // FIXME: what is LLVM method for cross-platform int64 format code?
+      // XXX: FirstPC may be NULL if there was no read after our request
       Report(" #%d: write to %p by %p and %p %lldx\n", i, (uptr)(*iter).addr,
              WAW->FirstPC, WAW->SecondPC, WAW->Count);
     }
