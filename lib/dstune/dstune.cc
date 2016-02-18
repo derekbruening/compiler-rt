@@ -30,13 +30,19 @@ enum {
   ModeWrittenAgain = 2,
 };
 
-// We shadow every byte of app memory with a shadow byte holding:
+#define SHADOW_COUNTER_BITS 5
+
+// We shadow every byte of app memory with a shadow byte.
+// We live with races in accessing each shadow byte.
 struct ShadowByte {
   // We don't get packing if we mix types so we cannot use an
   // enum type.
   unsigned char /* Mode* enum */ Mode:2;
   unsigned char /* bool */ ContextRequested:1;
+  unsigned char Counter:SHADOW_COUNTER_BITS;
 };
+
+static const int kShadowCounterMax = (1 << SHADOW_COUNTER_BITS) - 1;
 
 // When we find a WAW we create an entry in a hashtable, keyed by
 // app address.  This is the payload of our hashtable:
@@ -57,6 +63,14 @@ typedef AddrHashMap<WriteAfterWrite, 31051000> WriteAfterWriteHashMap;
 static WriteAfterWriteHashMap *WAWHashMap;
 
 static void processWAWInstance(uptr PC, uptr Addr, ShadowByte &Shadow) {
+  // We filter out the low-count WAW instances with this in-shadow counter.
+  // FIXME: this can cause us to completely miss WAW instances that use
+  // different data addresses each time.  This is a downside to the
+  // data-oriented approach.
+  if (Shadow.Counter != kShadowCounterMax) {
+    Shadow.Counter++;
+    return;
+  }
   WriteAfterWriteHashMap::Handle h(WAWHashMap, Addr,
                                    /* remove */ false,
                                    /* create */ false);
@@ -74,7 +88,7 @@ static void processWAWInstance(uptr PC, uptr Addr, ShadowByte &Shadow) {
   } else {
     WriteAfterWriteHashMap::Handle h(WAWHashMap, Addr);
     CHECK(h.created());
-    h->Count = 1;
+    h->Count = kShadowCounterMax + 1;
     h->FirstPC = 0;
     h->SecondPC = PC;
     Shadow.ContextRequested = 1;
@@ -194,6 +208,7 @@ void initializeLibrary() {
 int finalizeLibrary() {
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
   if (WAWHashMap->size() > 0) {
+    //FIXME support writing to a file
     Report("%d write-after-write instances found:\n", WAWHashMap->size());
     int i = 0;
     for (auto iter = WAWHashMap->begin();
