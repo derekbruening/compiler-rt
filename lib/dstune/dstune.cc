@@ -17,11 +17,15 @@
 #include "dstune_shadow.h"
 #include "sanitizer_common/sanitizer_addrhashmap.h"
 #include "sanitizer_common/sanitizer_common.h"
+#include "sanitizer_common/sanitizer_flags.h"
+#include "sanitizer_common/sanitizer_flag_parser.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
 
 namespace __dstune {
 
 bool DstuneIsInitialized;
+
+static const char * const kDstuneOpsEnv = "DSTUNE_OPTIONS";
 
 // States for our shadow memory:
 enum {
@@ -192,14 +196,27 @@ static void initializeShadow() {
   CHECK(sizeof(ShadowByte) == 1);
 }
 
+static void initializeFlags() {
+  // Once we add our own flags we'll parse them here.
+  // For now the common ones are sufficient.
+  FlagParser parser;
+  RegisterCommonFlags(&parser);
+  parser.ParseString(GetEnv(kDstuneOpsEnv));
+  SetVerbosity(common_flags()->verbosity);
+  if (Verbosity())
+    ReportUnrecognizedFlags();
+  if (common_flags()->help)
+    parser.PrintFlagDescriptions();
+  __sanitizer_set_report_path(common_flags()->log_path);
+}
+
 void initializeLibrary() {
   // We assume there is only one thread during init.
   if (DstuneIsInitialized)
     return;
   DstuneIsInitialized = true;
   SanitizerToolName = "DeadStoreTuner";
-  // FIXME: runtime flags: share with sanitizers?
-  SetVerbosity(0); //NOCHECKIN
+  initializeFlags();
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
   initializeInterceptors();
   initializeShadow();
@@ -208,7 +225,6 @@ void initializeLibrary() {
 int finalizeLibrary() {
   VPrintf(1, "in dstune::%s\n", __FUNCTION__);
   if (WAWHashMap->size() > 0) {
-    //FIXME support writing to a file
     Report("%d write-after-write instances found:\n", WAWHashMap->size());
     int i = 0;
     for (auto iter = WAWHashMap->begin();
