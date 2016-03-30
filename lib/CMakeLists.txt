@@ -48,4 +48,8 @@ if(COMPILER_RT_BUILD_SANITIZERS)
   if(COMPILER_RT_HAS_CFI)
     add_subdirectory(cfi)
   endif()
+
+  if(COMPILER_RT_HAS_CFSAN)
+    add_subdirectory(cfsan)
+  endif()
 endif()

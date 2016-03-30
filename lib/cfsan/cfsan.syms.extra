@@ -1,0 +1,4 @@
+__cfsan_init
+__cfsan_read*
+__cfsan_write*
+__cfsan_unaligned*

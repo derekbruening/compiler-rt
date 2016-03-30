@@ -30,6 +30,9 @@
 //   COMMON_INTERCEPTOR_SET_PTHREAD_NAME
 //   COMMON_INTERCEPTOR_HANDLE_RECVMSG
 //   COMMON_INTERCEPTOR_NOTHING_IS_INITIALIZED
+//
+// COMMON_INTERCEPTOR_ON_EXIT is only called if the app explicitly calls exit(),
+// not on a normal exit.
 //===----------------------------------------------------------------------===//
 
 #include "interception/interception.h"
